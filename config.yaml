@@ -1,0 +1,9 @@
+document: meta-test-family
+version: 1
+name: sudo-pip-change
+module:
+    docker:
+        labels:
+            description: "Tests of Fedora Change Making sudo pip safe"
+        source: TODO
+        container: docker.io/mcyprian/sudo-pip-change
