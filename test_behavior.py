@@ -185,6 +185,51 @@ class NonSystemInstallationTest(module_framework.AvocadoTest):
                 "python3 -c 'import jinja2; print(jinja2.__file__)'",
                 shell=True).stdout)
 
+    def testVenv(self):
+        self.start()
+        self.run('python3 -m venv /home/testuser/venv')
+        self.run("source venv/bin/activate && pip3 install jinja2")
+        self.assertIn(
+            '/home/testuser/venv/lib64/python3.6/site-packages',
+            self.run(
+                "source venv/bin/activate && python3 -c 'import jinja2; "
+                "print(jinja2.__file__)'",
+                shell=True).stdout)
+        self.assertNotIn(
+            '/usr/local/lib/python3.6/site-packages\n',
+            self.run(
+                "source venv/bin/activate && python3 -c 'import sys; "
+                "print(sys.path)'",
+                shell=True).stdout)
+
+    def testVenvSystemSite(self):
+        self.start()
+        self.run('python3 -m venv /home/testuser/venv --system-site-packages')
+        self.run("sudo pip3 install jinja2 && source venv/bin/activate")
+        self.assertIn(
+            '/home/testuser/venv/lib/python3.6/site-packages',
+            self.run(
+                "source venv/bin/activate && python3 -c 'import sys; "
+                "print(sys.path)'",
+                shell=True).stdout)
+        self.assertIn(
+            '/usr/local/lib/python3.6/site-packages',
+            self.run(
+                "source venv/bin/activate && python3 -c 'import sys; "
+                "print(sys.path)'",
+                shell=True).stdout)
+        self.assertIn(
+            '/usr/lib/python3.6/site-packages',
+            self.run(
+                "source venv/bin/activate && python3 -c 'import sys; "
+                "print(sys.path)'",
+                shell=True).stdout)
+        self.assertIn(
+            '/usr/local/lib64/python3.6/site-packages',
+            self.run(
+                "python3 -c 'import jinja2; print(jinja2.__file__)'",
+                shell=True).stdout)
+
 
 class EmbededPythonBinaryTest(module_framework.AvocadoTest):
     """
