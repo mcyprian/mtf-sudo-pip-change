@@ -1,10 +1,10 @@
 #!/usr/bin/python3
-
 from avocado import main
-from moduleframework import module_framework
+
+from .python_test import PythonTest
 
 
-class SimpleTest(module_framework.AvocadoTest):
+class SimpleTest(PythonTest):
     """
     :avocado: enable
     """
@@ -12,125 +12,122 @@ class SimpleTest(module_framework.AvocadoTest):
     def testPrint(self):
         self.start()
         self.assertIn('It works!',
-                      self.run("python3 -c \"print('It works!')\"", shell=True)
-                      .stdout)
+                      self.run("{0} -c \"print('It works!')\"".format(
+                          self.PYTHON), shell=True).stdout)
 
-    def testPrefix(self):
+    def test_prefix(self):
         self.start()
         self.assertEquals('/usr\n',
-                          self.run("python3 -c 'import sys; print(sys.prefix)'",
-                                   shell=True)
-                          .stdout)
+                          self.run(
+                              "{0} -c 'import sys; print(sys.prefix)'".format(
+                                  self.PYTHON), shell=True).stdout)
 
-    def testSitePackages(self):
+    def test_site_packages(self):
         self.start()
         self.assertEquals(
-            '/usr/local/lib64/python3.6/site-packages\n',
+            '{0}\n'.format(self.LOCAL_SITE_PACKAGES_ARCH),
             self.run(
-                "python3 -c 'import site; print(site.getsitepackages()[0])'",
-                shell=True).stdout)
+                "{0} -c 'import site; print(site.getsitepackages()[0])'".format(
+                    self.PYTHON), shell=True).stdout)
 
-    def testPath(self):
+    def test_path(self):
         self.start()
-        self.run('sudo pip3 install jinja2')
-        self.assertEquals(
-            '/usr/local/lib64/python3.6/site-packages\n',
-            self.run(
-                "python3 -c 'import sys; print(sys.path[4])'",
-                shell=True).stdout)
+        self.pkg_install_sys('jinja2')
+        self.assertEquals('{0}\n'.format(self.LOCAL_SITE_PACKAGES_ARCH),
+                          self.run(
+                              "{0} -c 'import sys; print(sys.path[4])'".format(
+                                  self.PYTHON), shell=True).stdout)
 
         self.assertEquals(
-            '/usr/local/lib/python3.6/site-packages\n',
-            self.run(
-                "python3 -c 'import sys; print(sys.path[5])'",
-                shell=True).stdout)
+            '{0}\n'.format(self.LOCAL_SITE_PACKAGES_ARCH),
+            self.run("{0} -c 'import sys; print(sys.path[5])'".format(
+                self.PYTHON), shell=True).stdout)
 
         self.assertEquals(
-            '/usr/lib64/python3.6/site-packages\n',
+            '{0}\n'.format(self.SITE_PACKAGES),
             self.run(
-                "python3 -c 'import sys; print(sys.path[6])'",
+                "{0} -c 'import sys; print(sys.path[6])'".format(self.PYTHON),
                 shell=True).stdout)
 
 
-class ImportTest(module_framework.AvocadoTest):
+class ImportTest(PythonTest):
     """
     :avocado: enable
     """
 
-    def testStdLib(self):
+    def test_std_lib(self):
         self.start()
         self.assertNotIn('Traceback (most recent call last):',
-                         self.run("python3 -c 'import sys, os, asyncio'",
-                                  shell=True).stdout)
+                         self.run("{0} -c 'import sys, os, asyncio'".format(
+                             self.PYTHON), shell=True).stdout)
 
 
-class InstallLocationTest(module_framework.AvocadoTest):
+class InstallLocationTest(PythonTest):
     """
     :avocado: enable
     """
 
-    def testUserEnviron(self):
+    def test_user_environ(self):
         self.start()
-        self.run("sudo pip3 install jinja2")
-        self.run("sudo pip3 install simplejson")
+        self.pkg_install_sys('jinja2')
+        self.pkg_install_sys('simplejson')
         self.assertIn(
-            '/usr/local/lib64/python3.6/site-packages',
+            self.LOCAL_SITE_PACKAGES_ARCH,
             self.run(
-                "python3 -c 'import jinja2; print(jinja2.__file__)'",
-                shell=True).stdout)
+                "{0} -c 'import jinja2; print(jinja2.__file__)'".format(
+                    self.PYTHON), shell=True).stdout)
         self.assertIn(
-            '/usr/local/lib/python3.6/site-packages',
+            self.LOCAL_SITE_PACKAGES,
             self.run(
-                "python3 -c 'import simplejson; print(simplejson.__file__)'",
-                shell=True).stdout)
+                "{0} -c 'import simplejson; print(simplejson.__file__)'".format(
+                    self.PYTHON), shell=True).stdout)
 
-    def testRPMBuild(self):
+    def test_rpm_build(self):
         self.start()
-        self.run('sudo RPM_BUILD_ROOT=/builddir/build/ pip3 install jinja2')
-        self.run(
-            'sudo RPM_BUILD_ROOT=/builddir/build/ pip3 install simplejson')
+        self.pkg_install_sys('jinja2', rpmbuild=True)
+        self.pkg_install_sys('simplejson', rpmbuild=True)
         self.assertIn(
-            '/usr/lib64/python3.6/site-packages',
+            self.SITE_PACKAGES_ARCH,
             self.run(
-                "python3 -c 'import jinja2; print(jinja2.__file__)'",
-                shell=True).stdout)
+                "{0} -c 'import jinja2; print(jinja2.__file__)'".format(
+                    self.PYTHON), shell=True).stdout)
         self.assertIn(
-            '/usr/lib/python3.6/site-packages',
+            self.SITE_PACKAGES,
             self.run(
-                "python3 -c 'import simplejson; print(simplejson.__file__)'",
-                shell=True).stdout)
+                "{0} -c 'import simplejson; print(simplejson.__file__)'".format(
+                    self.PYTHON), shell=True).stdout)
 
 
-class IsolationTest(module_framework.AvocadoTest):
+class IsolationTest(PythonTest):
     """
     :avocado: enable
     """
 
-    def testDashI(self):
+    def test_dash_i(self):
         self.start()
-        self.run("echo '' | sudo -S pip3 install jinja2")
+        self.pkg_install_sys('jinja2', silent=True)
         self.assertNotIn(
-            '/usr/local/lib64/python3.6/site-packages',
+            self.LOCAL_SITE_PACKAGES_ARCH,
             self.run(
-                "python3 -I -c 'import sys; print(sys.path)'",
+                "{0} -I -c 'import sys; print(sys.path)'".format(self.PYTHON),
                 shell=True).stdout)
 
-    def testDashS(self):
+    def test_dash_s(self):
         self.start()
-        self.run("echo '' | sudo -S pip3 install jinja2")
+        self.pkg_install_sys('jinja2', silent=True)
         self.assertNotIn(
-            '/usr/local/lib64/python3.6/site-packages',
+            self.LOCAL_SITE_PACKAGES_ARCH,
             self.run(
-                "python3 -s -c 'import sys; print(sys.path)'",
+                "{0} -I -c 'import sys; print(sys.path)'".format(self.PYTHON),
                 shell=True).stdout)
 
 
-class NonSystemInstallationTest(module_framework.AvocadoTest):
+class NonSystemInstallationTest(PythonTest):
     """
     :avocado: enable
     """
 
-    def testUser(self):
+    def test_user(self):
         self.start()
         self.run('pip3 install --user jinja2')
         self.assertIn(
@@ -139,7 +136,7 @@ class NonSystemInstallationTest(module_framework.AvocadoTest):
                 "python3 -c 'import jinja2; print(jinja2.__file__)'",
                 shell=True).stdout)
 
-    def testVirtualenv(self):
+    def test_virtualenv(self):
         self.start()
         self.run('virtualenv-3 /home/testuser/venv -p /usr/bin/python3')
         self.run("source venv/bin/activate && pip3 install jinja2")
@@ -156,7 +153,7 @@ class NonSystemInstallationTest(module_framework.AvocadoTest):
                 "print(sys.path)'",
                 shell=True).stdout)
 
-    def testVirtualenvSystemSite(self):
+    def test_virtualenv_system_site(self):
         self.start()
         self.run('virtualenv-3 /home/testuser/venv -p /usr/bin/python3 '
                  '--system-site-packages')
@@ -185,7 +182,7 @@ class NonSystemInstallationTest(module_framework.AvocadoTest):
                 "python3 -c 'import jinja2; print(jinja2.__file__)'",
                 shell=True).stdout)
 
-    def testVenv(self):
+    def test_venv(self):
         self.start()
         self.run('python3 -m venv /home/testuser/venv')
         self.run("source venv/bin/activate && pip3 install jinja2")
@@ -202,7 +199,7 @@ class NonSystemInstallationTest(module_framework.AvocadoTest):
                 "print(sys.path)'",
                 shell=True).stdout)
 
-    def testVenvSystemSite(self):
+    def test_venv_system_site(self):
         self.start()
         self.run('python3 -m venv /home/testuser/venv --system-site-packages')
         self.run("sudo pip3 install jinja2 && source venv/bin/activate")
@@ -231,12 +228,12 @@ class NonSystemInstallationTest(module_framework.AvocadoTest):
                 shell=True).stdout)
 
 
-class EmbededPythonBinaryTest(module_framework.AvocadoTest):
+class EmbededPythonBinaryTest(PythonTest):
     """
     :avocado: enable
     """
 
-    def testLocalImport(self):
+    def test_local_import(self):
         self.start()
         self.run('sudo pip3 install jinja2')
         self.run('sudo cp /usr/bin/python3 /usr/local/bin/embeded-py-bin')
@@ -250,6 +247,27 @@ class EmbededPythonBinaryTest(module_framework.AvocadoTest):
                              "embeded-py-bin -c 'import jinja2'",
                              shell=True).stdout)
 
+
+# class UninstallTest(PythonTest):
+#    """
+#    :avocado: enable
+#    """
+#
+#    def test_uninstall_ok(self):
+#        self.start()
+#        self.run('sudo pip3 install jinja2')
+#        self.assertIn(
+#            '/usr/local/lib64/python3.6/site-packages',
+#            self.run(
+#                "python3 -c 'import sys; print(sys.path)'",
+#                shell=True).stdout)
+#        self.run('sudo pip3 uninstall jinja2')
+#        self.assertIn(
+#            '/usr/local/lib64/python3.6/site-packages',
+#            self.run(
+#                "python3 -c 'import sys; print(sys.path)'",
+#                shell=True).stdout)
+#
 
 if __name__ == '__main__':
     main()
